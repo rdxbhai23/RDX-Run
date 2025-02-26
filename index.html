@@ -3,43 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RDX Lottery Predictor</title>
+    <title>RDX Run</title>
     <style>
-        body { text-align: center; font-family: Arial, sans-serif; background-color: black; color: white; }
-        h1 { font-size: 40px; margin-top: 20px; }
-        button { padding: 10px 20px; font-size: 18px; cursor: pointer; margin-top: 20px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+        body { text-align: center; background: #222; color: white; overflow: hidden; }
+        canvas { background: url('background.jpg') repeat-x; display: block; margin: auto; }
+        #score { position: absolute; top: 10px; left: 10px; font-size: 20px; }
+        #controls { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); }
+        button { padding: 10px 20px; font-size: 16px; margin: 5px; }
     </style>
 </head>
 <body>
-    <h1>🔥 RDX SE PANGA NAHI LENE KA 🔥</h1>
-    <p>Lottery Predictor</p>
-    <button onclick="predict()">Predict Next Lottery Result</button>
-    <p id="result"></p>
-
+    <h1>RDX Run</h1>
+    <p id="score">Score: 0</p>
+    <canvas id="gameCanvas"></canvas>
+    <div id="controls">
+        <button onclick="jump()">Jump</button>
+    </div>
     <script>
-        function predict() {
-            let history = JSON.parse(localStorage.getItem("lottery_history")) || [];
-            if (!Array.isArray(history) || history.length < 5) {
-                document.getElementById("result").innerText = "Not enough data";
-                return;
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = window.innerWidth * 0.9;
+        canvas.height = 400;
+
+        let player = { x: 50, y: 300, width: 50, height: 50, color: "red", velocityY: 0, gravity: 0.5, jumping: false };
+        let obstacles = [], coins = [], score = 0, gameSpeed = 5, gameRunning = true;
+
+        function drawPlayer() {
+            ctx.fillStyle = player.color;
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+        }
+
+        function drawObstacles() {
+            ctx.fillStyle = "brown";
+            obstacles.forEach(obstacle => ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height));
+        }
+
+        function drawCoins() {
+            ctx.fillStyle = "yellow";
+            coins.forEach(coin => ctx.fillRect(coin.x, coin.y, 20, 20));
+        }
+
+        function update() {
+            if (!gameRunning) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (player.jumping) {
+                player.velocityY -= player.gravity;
+                player.y -= player.velocityY;
+                if (player.y >= 300) {
+                    player.y = 300;
+                    player.jumping = false;
+                    player.velocityY = 0;
+                }
             }
 
-            let counts = {};
-            history.forEach((num, index) => {
-                let weight = index / history.length;
-                counts[num] = (counts[num] || 0) + 1 + weight;
+            obstacles.forEach(obstacle => obstacle.x -= gameSpeed);
+            coins.forEach(coin => coin.x -= gameSpeed);
+
+            obstacles = obstacles.filter(obstacle => obstacle.x > 0);
+            coins = coins.filter(coin => coin.x > 0);
+
+            obstacles.forEach(obstacle => {
+                if (player.x < obstacle.x + obstacle.width && player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacle.height && player.y + player.height > obstacle.y) {
+                    gameRunning = false;
+                    alert("Game Over! Score: " + score);
+                    location.reload();
+                }
             });
 
-            let maxFrequency = Math.max(...Object.values(counts));
-            let mostFrequentNumbers = Object.keys(counts).filter(num => counts[num] === maxFrequency);
-            mostFrequentNumbers = mostFrequentNumbers.filter(num => counts[num] > 1);
+            coins.forEach((coin, index) => {
+                if (player.x < coin.x + 20 && player.x + player.width > coin.x &&
+                    player.y < coin.y + 20 && player.y + player.height > coin.y) {
+                    coins.splice(index, 1);
+                    score += 10;
+                    document.getElementById("score").innerText = "Score: " + score;
+                }
+            });
 
-            let prediction = mostFrequentNumbers.length > 0
-                ? mostFrequentNumbers[Math.floor(Math.random() * mostFrequentNumbers.length)]
-                : "No strong prediction";
-
-            document.getElementById("result").innerText = `Next Prediction: ${prediction}`;
+            drawPlayer();
+            drawObstacles();
+            drawCoins();
+            requestAnimationFrame(update);
         }
+
+        setInterval(() => {
+            obstacles.push({ x: canvas.width, y: 350, width: 30, height: 30 });
+        }, 2000);
+
+        setInterval(() => {
+            coins.push({ x: canvas.width, y: Math.random() * (canvas.height - 150) });
+        }, 3000);
+
+        function jump() {
+            if (!player.jumping) {
+                player.jumping = true;
+                player.velocityY = 10;
+            }
+        }
+
+        document.addEventListener("keydown", event => { if (event.code === "Space") jump(); });
+
+        update();
     </script>
 </body>
 </html>
